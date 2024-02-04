@@ -1,8 +1,8 @@
 import datetime
-from sqlalchemy import Column, DateTime, Boolean, Integer, String, ForeignKey, LargeBinary
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from app import ma, connect
-from models.user import User
+from marshmallow import fields, Schema
+from models import user
+from database.connect import connect
 
 
 class Order(connect.Model):
@@ -10,14 +10,38 @@ class Order(connect.Model):
     name: Mapped[str]
     note: Mapped[str] = mapped_column(nullable=True)
     status: Mapped[str]
-    user = relationship(User, backref="orders")
+    user = relationship(user.User, backref="orders")
     created_at: Mapped[datetime.datetime] = mapped_column(default=datetime.datetime.now())
 
+    @classmethod
+    def get_all(cls):
+        return cls.query.all()
 
-class OrderSchema(ma.SQLAlchemySchema):
+    @classmethod
+    def get_by_id(cls, id):
+        return cls.query.get_or_404(id)
+
+    def save(self):
+        connect.session.add(self)
+        connect.session.commit()
+
+        return self.id
+
+    def delete(self):
+        connect.session.delete(self)
+        connect.session.commit()
+
+        return f"{self.name} deleted successfully"
+
+
+class OrderSchema(Schema):
     class Meta:
         model = Order
         include_fk = True
 
-
-    # crepes = ma.auto_field()
+    id = fields.Integer()
+    name = fields.String()
+    note = fields.String()
+    status = fields.String()
+    user = fields.Nested(user.UserSchema())
+    created_at: Mapped[datetime.datetime] = mapped_column(default=datetime.datetime.now())
